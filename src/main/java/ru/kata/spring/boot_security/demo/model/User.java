@@ -1,34 +1,33 @@
 package ru.kata.spring.boot_security.demo.model;
 
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import javax.persistence.*;
 import javax.validation.constraints.Email;
+import javax.validation.constraints.NotEmpty;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Entity
-@Table(name = "users", uniqueConstraints = {
-        @UniqueConstraint(columnNames = "username")
-})
+@Table(name = "users")
 public class User implements UserDetails {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id")
-    private Long id;
-
-    @Column(name = "username")
-    private String username;
+    private Long userId;
 
     @Column(name = "first_name")
-    private String firstName;
+    private String name;
 
     @Column(name = "last_name")
     private String lastName;
 
     @Column(name = "age")
-    private int age;
+    private byte age;
 
     @Column(name = "email")
     @Email(message = "Email should be valid")
@@ -37,48 +36,43 @@ public class User implements UserDetails {
     @Column(name = "password")
     private String password;
 
+    @NotEmpty(message = "Role cannot be omitted")
     @ManyToMany(fetch = FetchType.LAZY)
-    @JoinTable(name = "users_roles", joinColumns = @JoinColumn(name = "user_id"),
-            inverseJoinColumns = @JoinColumn(name = "role_id"))
-    private Set<Role> roles;
+    @JoinTable(name = "users_roles",
+            joinColumns = @JoinColumn(name = "userId"),
+            inverseJoinColumns = @JoinColumn(name = "roleId"))
+    private Set<Role> roles = new HashSet<>();
 
     public User() {
-
     }
 
-    public User(String username, String firstName, String lastName, String password, int age, String email, Set<Role> roles) {
-        this.username = username;
-        this.password = password;
-        this.firstName = firstName;
+    public User(String name, String lastName, byte age, String email, String password, Set<Role> roles) {
+        this.name = name;
         this.lastName = lastName;
         this.age = age;
         this.email = email;
+        this.password = password;
         this.roles = roles;
     }
 
-    public long getId() {
-        return id;
+    public void setPassword(String password) {
+        this.password = password;
     }
 
-    public void setId(long id) {
-        this.id = id;
+    public Long getUserId() {
+        return userId;
     }
 
-    @Override
-    public String getUsername() {
-        return username;
+    public void setUserId(Long userId) {
+        this.userId = userId;
     }
 
-    public void setUsername(String username) {
-        this.username = username;
+    public String getName() {
+        return name;
     }
 
-    public String getFirstName() {
-        return firstName;
-    }
-
-    public void setFirstName(String firstName) {
-        this.firstName = firstName;
+    public void setName(String name) {
+        this.name = name;
     }
 
     public String getLastName() {
@@ -89,11 +83,11 @@ public class User implements UserDetails {
         this.lastName = lastName;
     }
 
-    public int getAge() {
+    public byte getAge() {
         return age;
     }
 
-    public void setAge(int age) {
+    public void setAge(byte age) {
         this.age = age;
     }
 
@@ -113,9 +107,13 @@ public class User implements UserDetails {
         this.roles = roles;
     }
 
+    public void addRole(Role role) {
+        roles.add(role);
+    }
+
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return roles;
+        return roles.stream().map(role -> new SimpleGrantedAuthority(role.getRole())).collect(Collectors.toList());
     }
 
     @Override
@@ -123,8 +121,9 @@ public class User implements UserDetails {
         return password;
     }
 
-    public void setPassword(String password) {
-        this.password = password;
+    @Override
+    public String getUsername() {
+        return getEmail();
     }
 
     @Override

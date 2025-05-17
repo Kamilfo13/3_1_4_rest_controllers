@@ -1,68 +1,85 @@
 package ru.kata.spring.boot_security.demo.service;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import ru.kata.spring.boot_security.demo.dao.UserDao;
 import ru.kata.spring.boot_security.demo.model.User;
+import ru.kata.spring.boot_security.demo.repository.UserRepository;
 
 import java.util.List;
-import java.util.Optional;
-import java.util.stream.Collectors;
+
 
 @Service
-public class UserServiceImpl implements UserService {
-    private final UserDao userDao;
-    private final RoleService roleService;
+public class UserServiceImpl implements UserService, UserDetailsService {
+    private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
-    public UserServiceImpl(UserDao userDao, RoleService roleService, PasswordEncoder passwordEncoder) {
-        this.userDao = userDao;
-        this.roleService = roleService;
+    @Autowired
+    public UserServiceImpl(UserRepository userRepository, @Lazy PasswordEncoder passwordEncoder) {
+        this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
-    }
-
-    @Transactional
-    @Override
-    public void addUser(User user) {
-        user.setPassword(passwordEncoder.encode(user.getPassword()));
-        setUserRoles(user);
-        userDao.addUser(user);
     }
 
     @Override
     public List<User> getAllUsers() {
-        return userDao.getAllUsers();
+        return userRepository.findAll();
     }
 
     @Override
-    public User getUserById(Long id) {
-        return userDao.getUserById(id);
+    public User getUserById(long id) {
+        return userRepository.findById(id).orElseThrow(() -> new UsernameNotFoundException("username not found"));
     }
 
     @Override
-    public Optional<User> getUserByUsername(String username) {
-        return userDao.getUserByUsername(username);
-    }
-
     @Transactional
-    @Override
-    public void deleteUser(Long id) {
-        userDao.deleteUser(id);
-    }
-
-    @Transactional
-    @Override
-    public void updateUser(User user) {
+    public void addUser(User user) {
         user.setPassword(passwordEncoder.encode(user.getPassword()));
-        setUserRoles(user);
-        userDao.updateUser(user);
+        userRepository.save(user);
+
     }
 
     @Override
-    public void setUserRoles(User user) {
-        user.setRoles(user.getRoles().stream()
-                .map(r -> roleService.findByName(r.getName()).get())
-                .collect(Collectors.toSet()));
+    @Transactional
+    public void deleteUserById(long id) {
+        userRepository.deleteById(id);
+    }
+
+    @Override
+    @Transactional
+    public void updateUser(User user) {
+        userRepository
+                .findById(user.getUserId())
+                .ifPresent(user1 -> {
+                    user1.setName(user.getName());
+                    user1.setLastName(user.getLastName());
+                    user1.setAge(user.getAge());
+                    user1.setEmail(user.getEmail());
+                    user1.setRoles(user.getRoles());
+                    if (!(user.getPassword().equals(user1.getPassword()))) {
+                        user1.setPassword(passwordEncoder.encode(user.getPassword()));
+                    }
+                    userRepository.save(user1);
+                });
+    }
+
+    @Override
+    public User findByUsername(String name) {
+        return userRepository.findByUsername(name);
+    }
+
+    @Override
+    public UserDetails loadUserByUsername(String name) throws UsernameNotFoundException {
+        User user = userRepository.findByUsername(name);
+        if (user == null) {
+            throw new UsernameNotFoundException("User not found!");
+        }
+        return user;
     }
 }
+
+
