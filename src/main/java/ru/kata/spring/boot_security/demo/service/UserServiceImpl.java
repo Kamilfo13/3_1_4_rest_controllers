@@ -1,88 +1,68 @@
 package ru.kata.spring.boot_security.demo.service;
 
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-import ru.kata.spring.boot_security.demo.DAO.RoleDaoImpl;
-import ru.kata.spring.boot_security.demo.DAO.UserDaoImpl;
-import ru.kata.spring.boot_security.demo.model.Role;
+import org.springframework.transaction.annotation.Transactional;
+import ru.kata.spring.boot_security.demo.dao.UserDao;
 import ru.kata.spring.boot_security.demo.model.User;
 
-import javax.transaction.Transactional;
 import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
-@Transactional
-public class UserServiceImpl {
+public class UserServiceImpl implements UserService {
+    private final UserDao userDao;
+    private final RoleService roleService;
+    private final PasswordEncoder passwordEncoder;
 
-    private final RoleDaoImpl roleDao;
-    private final UserDaoImpl userDao;
-
-    public PasswordEncoder bCryptPasswordEncoder() {
-        return new BCryptPasswordEncoder(12);
-    }
-
-    @Autowired
-    public UserServiceImpl(RoleDaoImpl roleDao, UserDaoImpl userDao) {
-        this.roleDao = roleDao;
+    public UserServiceImpl(UserDao userDao, RoleService roleService, PasswordEncoder passwordEncoder) {
         this.userDao = userDao;
+        this.roleService = roleService;
+        this.passwordEncoder = passwordEncoder;
     }
 
-    public void delete(Long id) {
-        userDao.delete(id);
+    @Transactional
+    @Override
+    public void addUser(User user) {
+        user.setPassword(passwordEncoder.encode(user.getPassword()));
+        setUserRoles(user);
+        userDao.addUser(user);
     }
 
-    public void update(User us) {
-        User userBas = findById(us.getId());
-        System.out.println(userBas);
-        System.out.println(us);
-        if (!userBas.getPassword().equals(us.getPassword())) {
-            us.setPassword(bCryptPasswordEncoder().encode(us.getPassword()));
-        }
-        userDao.update(us);
+    @Override
+    public List<User> getAllUsers() {
+        return userDao.getAllUsers();
     }
 
-    public boolean add(User user) {
-        User userBas = userDao.findByName(user.getUsername());
-        if (userBas != null) {
-            return false;
-        }
-        user.setPassword(bCryptPasswordEncoder().encode(user.getPassword()));
-        userDao.add(user);
-        return true;
+    @Override
+    public User getUserById(Long id) {
+        return userDao.getUserById(id);
     }
 
-    public List<User> listUsers() {
-        return userDao.listUsers();
+    @Override
+    public Optional<User> getUserByUsername(String username) {
+        return userDao.getUserByUsername(username);
     }
 
-    public User findById(Long id) {
-        return userDao.findById(id);
+    @Transactional
+    @Override
+    public void deleteUser(Long id) {
+        userDao.deleteUser(id);
     }
 
-    public Role findByIdRole(Long id) {
-        return roleDao.findByIdRole(id);
+    @Transactional
+    @Override
+    public void updateUser(User user) {
+        user.setPassword(passwordEncoder.encode(user.getPassword()));
+        setUserRoles(user);
+        userDao.updateUser(user);
     }
 
-    public List<Role> listRoles() {
-        return roleDao.listRoles();
-    }
-
-    public Role findByNameRole(String name) {
-        return roleDao.findByName(name);
-    }
-
-    public List<Role> listByRole(List<String> name) {
-        return roleDao.listByName(name);
-    }
-
-    public boolean addRole(Role role) {
-        Role userBas = roleDao.findByName(role.getRole());
-        if (userBas != null) {
-            return false;
-        }
-        roleDao.add(role);
-        return true;
+    @Override
+    public void setUserRoles(User user) {
+        user.setRoles(user.getRoles().stream()
+                .map(r -> roleService.findByName(r.getName()).get())
+                .collect(Collectors.toSet()));
     }
 }
