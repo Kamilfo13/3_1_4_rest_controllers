@@ -5,7 +5,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-import ru.kata.spring.boot_security.demo.Exception.UsernameExistsException;
+import ru.kata.spring.boot_security.demo.exception.UserNotExistsException;
 import ru.kata.spring.boot_security.demo.model.User;
 import ru.kata.spring.boot_security.demo.service.UserService;
 
@@ -33,8 +33,8 @@ public class AdminControllerRest {
         try {
             userService.addUser(user);
             return ResponseEntity.ok(HttpStatus.OK);
-        } catch (UsernameExistsException u) {
-            throw new UsernameExistsException("User with this username exists");
+        } catch (UserNotExistsException u) {
+            throw new UserNotExistsException("User with this username exists");
         }
     }
 
